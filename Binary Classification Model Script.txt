@@ -1,0 +1,253 @@
+#!/usr/bin/env python 3.9.0
+# coding: utf-8
+
+# # Hollard Data Science / Binary Classification Model 
+# 
+
+# In[37]:
+
+
+#importing all needed libraries for the prediction model 
+
+import pandas as pd   #for data preprocessing 
+import numpy as np   #for scientific computation 
+import matplotlib.pyplot as plt #for plotting and data virtualisation 
+from sklearn.model_selection import train_test_split #for training our dataset on the model
+from sklearn.preprocessing import LabelEncoder, StandardScaler #quantify qualitative data thorough numerical classification 
+from sklearn.linear_model import LogisticRegression #for binary data classification in claim 1 and 0
+from sklearn.metrics import roc_curve, auc #to evaluate the performance of the binary classification model 
+
+
+# # Data Preprocessing
+
+# In[38]:
+
+
+#Read the data.csv dataset which is saved in a csv format 
+df = pd.read_csv("data.csv")
+
+
+# In[39]:
+
+
+#Show the first 10 raws to understand how out data looks like 
+df.head(10)
+
+
+# In[40]:
+
+
+#Show the last 10 rows of the dataset 
+df.tail(10)
+
+
+# In[41]:
+
+
+#Get a description of our dataset
+df.describe()
+
+
+# In[42]:
+
+
+#Check for null values in all columns 
+print(df.isnull().sum())
+
+
+# In[43]:
+
+
+#Varify if the claims column has any null values
+print(df["Claim"].isnull().sum())
+
+
+# In[44]:
+
+
+#Obtain the total number of 0s and 1s which is the total number of claims that were not made and claims that were made 
+class_counts = df["Claim"].value_counts()
+print(class_counts)
+
+
+# In[45]:
+
+
+#Determine if the data contained in the claims column is imbalanced 
+total = class_counts.sum()
+imbalance_ratio = (class_counts / total) * 100
+
+
+# In[46]:
+
+
+#Print out the imbalance ratio to understand which binary classification had the highest percentage 
+print("\nClass Imbalance Percentage:")
+print(imbalance_ratio)
+
+
+# In[47]:
+
+
+#find the difference between the claims made and claims not made 
+claim_not_made = 5526
+claim_made = 1634
+
+difference = (claim_not_made - claim_made)
+print(difference)
+
+
+# In[48]:
+
+
+#Obtain the sum of 0s and 1s to understand if the total adds up to the overall number of rows in the dataset 
+Sum = (claim_not_made + claim_made)
+print(Sum)
+
+
+# In[49]:
+
+
+#Drop the 'Customer Id' column as it does not contribute to the prediction and will not need to be converted to a float
+df.drop(columns=["Customer Id"], inplace=True)
+
+
+# In[50]:
+
+
+#Fill missing values for numerical columns with the median, this will account for variability and increase the accuracy of our prediction model
+num_cols = ["Building Dimension", "Date_of_Occupancy"]
+for col in num_cols:
+    df[col].fillna(df[col].median(), inplace=True)
+
+
+# In[51]:
+
+
+#Fill missing values for categorical columns with the mode
+cat_cols = ["Garden", "Geo_Code"]
+for col in cat_cols:
+    df[col].fillna(df[col].mode()[0], inplace=True)
+
+
+# In[52]:
+
+
+#Check for null values in all columns that had missing values which where raplaced with the median and mode 
+print(df.isnull().sum())
+
+
+# In[53]:
+
+
+#Convert categorical variables to numerical using Label Encoding
+label_enc_cols = ["Building_Painted", "Building_Fenced", "Garden", "Settlement", "NumberOfWindows", "Geo_Code"]
+label_encoders = {}
+
+
+# In[54]:
+
+
+for col in label_enc_cols:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col])
+    label_encoders[col] = le  # Store encoders for reference
+
+
+# In[55]:
+
+
+#Show a detailed description of our cloumns, the data type and if any null values exist after transformation 
+df.info()
+
+
+# # Machine learning of the model using Logistic Regression 
+
+# In[56]:
+
+
+#Separate features and target variable
+X = df.drop(columns=["Claim"])
+y = df["Claim"]
+
+
+# In[57]:
+
+
+#Normalize numerical features
+scaler = StandardScaler()
+X[num_cols] = scaler.fit_transform(X[num_cols])
+
+
+# In[58]:
+
+
+#Split the data into training (80%) and testing (20%) sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+
+# In[71]:
+
+
+#Train the logistic regression model with class balancing
+model = LogisticRegression(class_weight="balanced", random_state=42)
+model.fit(X_train, y_train)
+
+
+# In[72]:
+
+
+#Probability prediction 
+y_train_probs = model.predict_proba(X_train)[:, 1]  # Probabilities for class 1
+y_test_probs = model.predict_proba(X_test)[:, 1]
+
+
+# In[73]:
+
+
+#Compute the ROC curve and AUC for training set (80%)
+fpr_train, tpr_train, _ = roc_curve(y_train, y_train_probs)
+auc_train = auc(fpr_train, tpr_train)
+
+
+# In[74]:
+
+
+#Compute the ROC curve and AUC for test set (20%)
+fpr_test, tpr_test, _ = roc_curve(y_test, y_test_probs)
+auc_test = auc(fpr_test, tpr_test)
+
+
+# # Virtualization of the ROC_AUC Curve 
+
+# In[75]:
+
+
+#Plot ROC curves
+plt.figure(figsize=(8, 6))
+plt.plot(fpr_train, tpr_train, label=f'Training AUC = {auc_train:.3f}', linestyle='--', color='Green')
+plt.plot(fpr_test, tpr_test, label=f'Test AUC = {auc_test:.3f}', linestyle='-', color='red')
+plt.plot([0, 1], [0, 1], 'k--', label="Random Classifier")
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curve - Logistic Regression")
+plt.legend()
+plt.grid()
+plt.show()
+
+
+# In[76]:
+
+
+#Output AUC values
+#AUC determines the sensitivity and the specificity of the accuracy of our model making the right predictions.
+#An AUG of 1 indicates that our model is 100% realiable, 0.5 means that our model is moderate and 0 indicates a poor model
+print(f"Training AUC: {auc_train:.3f}")
+print(f"Test AUC: {auc_test:.3f}")
+
+
+
+
+
+
+
