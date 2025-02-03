@@ -1,1 +1,1 @@
-# Binary-Classification-Model
+This repository caontains the dataset saved as data.csv, the variable description of the dataset, Binary Classification Model Python script saved as a text file as instructed and the requirements file containing all python libraries and their version, saved as a text file.
